@@ -1,10 +1,12 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
-import { Image, X, Send } from "lucide-react";
+import { Image, X, Send, Smile } from "lucide-react";
 import imageCompression from 'browser-image-compression';
 import GifPicker from "./GifPicker";
+import EmojiPicker from "./EmojiPicker";
 import toast from "react-hot-toast";
 import ConfettiButton from "./ConfettiButton";
+import { useAuthStore } from "../store/userAuthStore";
 
 // Custom GIF icon component
 const GifIcon = () => (
@@ -53,27 +55,101 @@ const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const [showGifPicker, setShowGifPicker] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const fileInputRef = useRef(null);
-  const { sendMessage } = useChatStore();
+  const { sendMessage, selectedUser } = useChatStore();
+  const { socket } = useAuthStore();
+  const typingTimeoutRef = useRef(null);
+
+  // Handle typing indicator
+  useEffect(() => {
+    if (!socket || !selectedUser) return;
+
+    const handleTyping = (typing) => {
+      if (typing !== isTyping) {
+        setIsTyping(typing);
+        socket.emit("typing", {
+          receiverId: selectedUser._id,
+          isTyping: typing
+        });
+      }
+    };
+
+    const handleTextChange = () => {
+      if (!isTyping) {
+        handleTyping(true);
+      }
+      
+      // Clear existing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      
+      // Set new timeout to stop typing indicator after 2 seconds
+      typingTimeoutRef.current = setTimeout(() => {
+        handleTyping(false);
+      }, 2000);
+    };
+
+    // Add event listener for text changes
+    if (text) {
+      handleTextChange();
+    }
+
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      
+      // Make sure typing indicator is turned off when component unmounts
+      if (isTyping) {
+        socket.emit("typing", {
+          receiverId: selectedUser._id,
+          isTyping: false
+        });
+      }
+    };
+  }, [text, socket, selectedUser, isTyping]);
 
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size must be less than 5MB");
+      return;
+    }
+
     try {
-      const compressedImage = await compressImage(file);
-      setImagePreview(compressedImage);
+      const base64 = await compressImage(file);
+      setImagePreview(base64);
     } catch (error) {
-      toast.error("Error uploading image");
+      toast.error("Failed to process image");
       console.error(error);
     }
   };
 
-  const removeImage = () => {
-    setImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!text.trim() && !imagePreview) return;
+    
+    try {
+      await sendMessage({ text, image: imagePreview });
+      setText("");
+      setImagePreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
     }
+  };
+
+  const handleEmojiSelect = (emoji) => {
+    setText(prev => prev + emoji);
+    setShowEmojiPicker(false);
   };
 
   const handleGifSelect = (gifUrl) => {
@@ -81,49 +157,28 @@ const MessageInput = () => {
     setShowGifPicker(false);
   };
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if(!text.trim() && !imagePreview) return;
-    
-    try {
-      await sendMessage({
-        text: text.trim(),
-        image: imagePreview,
-      });
-      //Clear form
-      setText("");
-      setImagePreview(null);
-      setShowGifPicker(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
- 
-    } catch (error) {
-      console.error("Failed to send message", error);
-    }
-  };
-
   return (
-    <form onSubmit={handleSendMessage} className="p-4 border-t border-base-300">
-      {/* Preview */}
+    <form onSubmit={handleSubmit} className="p-2 border-t border-base-300">
+      {/* Image preview */}
       {imagePreview && (
-        <div className="mb-4 relative w-fit">
+        <div className="relative w-32 h-32 mb-2">
           <img
             src={imagePreview}
             alt="Preview"
-            className="max-w-[200px] rounded-lg"
+            className="w-full h-full object-cover rounded-md"
           />
           <button
             type="button"
-            onClick={removeImage}
-            className="absolute -top-2 -right-2 btn btn-circle btn-error btn-xs"
+            onClick={() => setImagePreview(null)}
+            className="absolute top-1 right-1 bg-base-300 rounded-full p-1"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Input area */}
       <div className="flex items-center gap-2">
-        <div className="flex-1 flex items-center gap-2 bg-base-200 rounded-full px-4 py-2">
+        <div className="flex-1 bg-base-200 rounded-full px-4 py-2 flex items-center relative">
           <input
             type="text"
             value={text}
@@ -132,11 +187,31 @@ const MessageInput = () => {
             className="flex-1 bg-transparent border-none outline-none"
           />
 
-          <div className="flex items-center gap-1">
-            {/* GIF button */}
+          {/* Emoji picker */}
+          <div className="flex items-center">
             <button
               type="button"
-              onClick={() => setShowGifPicker(!showGifPicker)}
+              onClick={() => {
+                setShowEmojiPicker(!showEmojiPicker);
+                setShowGifPicker(false);
+              }}
+              className="btn btn-ghost btn-circle btn-sm"
+            >
+              <Smile className="w-5 h-5" />
+            </button>
+            <EmojiPicker
+              isOpen={showEmojiPicker}
+              onSelect={handleEmojiSelect}
+              onClose={() => setShowEmojiPicker(false)}
+            />
+
+            {/* GIF picker */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowGifPicker(!showGifPicker);
+                setShowEmojiPicker(false);
+              }}
               className="btn btn-ghost btn-circle btn-sm"
             >
               <GifIcon />

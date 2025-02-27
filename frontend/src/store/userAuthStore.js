@@ -18,8 +18,8 @@ export const useAuthStore = create((set, get) => ({
 
     checkAuth: async() => {
         try {
-            const res = await axiosInstance.get("http://localhost:5001/api/auth/check");
-
+            const res = await axiosInstance.get("/auth/check");
+            
             set({authUser:res.data});
             get().connectSocket();
 
@@ -98,6 +98,11 @@ export const useAuthStore = create((set, get) => ({
             query: {
                 userId: authUser._id,
             },
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 20000,
         });
         socket.connect()
 
@@ -106,6 +111,18 @@ export const useAuthStore = create((set, get) => ({
         socket.on("getOnlineUsers", (userids) => {
             set({onlineUsers: userids});
         })
+
+        socket.on('connect', () => {
+            console.log('Socket connected');
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('Socket disconnected');
+        });
+        
+        socket.on('connect_error', (error) => {
+            console.error('Socket connection error:', error);
+        });
       },
       disconnectSocket: () => {
         if(get().socket?.connected) get().socket.disconnect();

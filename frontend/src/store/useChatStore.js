@@ -2,6 +2,7 @@ import { create } from "zustand";
 import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./userAuthStore";
+import { playNotificationSound } from "../lib/sound";
 
 export const useChatStore = create((set, get) => ({
     messages: [],
@@ -10,6 +11,8 @@ export const useChatStore = create((set, get) => ({
     isUsersLoading: false,
     isMessagesLoading: false,
     unreadCounts: {}, // {userId: count}
+    soundEnabled: localStorage.getItem('chat-sound-enabled') !== 'false', // Default to true
+    typingUsers: {}, // {userId: boolean}
 
     getUsers: async () => {
         set({ isUsersLoading: true });
@@ -17,19 +20,19 @@ export const useChatStore = create((set, get) => ({
             const { data } = await axiosInstance.get("/messages/users");
             set({ users: data });
         } catch (error) {
-            toast.error(error.response.data.message);
+            toast.error(error.response?.data?.message || "Failed to fetch users");
         } finally {
             set({ isUsersLoading: false });
         }
     },
 
     getMessages: async (userId) => {
-        set({ isMessagesLoading: true });
+        set({ isMessagesLoading: true, messages: [] });
         try {
             const res = await axiosInstance.get(`/messages/${userId}`);
             set({ messages: res.data });
         } catch (error) {
-            toast.error(error.response.data.message);
+            toast.error(error.response?.data?.message || "Failed to fetch messages");
         } finally {
             set({ isMessagesLoading: false });
         }
@@ -41,8 +44,7 @@ export const useChatStore = create((set, get) => ({
             const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
             set({ messages: [...messages, res.data] });
         } catch (error) {
-            toast.error(error.response.data.message);
-            
+            toast.error(error.response?.data?.message || "Failed to send message");
         }
     },
     
@@ -73,16 +75,35 @@ export const useChatStore = create((set, get) => ({
         }
     },
 
+    toggleSound: () => {
+        const newSoundEnabled = !get().soundEnabled;
+        localStorage.setItem('chat-sound-enabled', newSoundEnabled.toString());
+        set({ soundEnabled: newSoundEnabled });
+    },
+
+    setSelectedUser: (user) => {
+        set({ selectedUser: user });
+    },
+
     subscribeToMessages: () => {
         const socket = useAuthStore.getState().socket;
         if (!socket) return;
 
         socket.on("newMessage", (newMessage) => {
+            // Play notification sound when receiving a new message
+            if (get().soundEnabled) {
+                playNotificationSound();
+            }
+            
             // If the user is currently viewing the chat with the sender,
             // mark the message as seen immediately
             const { selectedUser } = get();
             if (selectedUser?._id === newMessage.senderId) {
                 get().markMessagesAsSeen(newMessage.senderId);
+                // Only add the message to the current messages array if it belongs to the current conversation
+                set(state => ({
+                    messages: [...state.messages, newMessage],
+                }));
             } else {
                 // Otherwise, increment the unread count
                 set(state => ({
@@ -92,10 +113,6 @@ export const useChatStore = create((set, get) => ({
                     }
                 }));
             }
-            
-            set(state => ({
-                messages: [...state.messages, newMessage],
-            }));
         });
 
         socket.on("messagesSeen", ({ senderId, receiverId }) => {
@@ -116,15 +133,32 @@ export const useChatStore = create((set, get) => ({
                 }
             }));
         });
+
+        // Add listener for typing events
+        socket.on("userTyping", ({ senderId, isTyping }) => {
+            set(state => ({
+                typingUsers: {
+                    ...state.typingUsers,
+                    [senderId]: isTyping
+                }
+            }));
+        });
+
+        // Add listener for confetti events
+        socket.on("confettiTriggered", ({ senderId }) => {
+            // We don't need to update state here as the ConfettiButton component
+            // will handle the confetti animation directly
+        });
     },
 
     unsubscribeFromMessages: () => {
         const socket = useAuthStore.getState().socket;
         if (!socket) return;
+
         socket.off("newMessage");
         socket.off("messagesSeen");
         socket.off("messagesRead");
-    },
-
-    setSelectedUser: (selectedUser) => set({ selectedUser }),
-}))
+        socket.off("userTyping");
+        socket.off("confettiTriggered");
+    }
+}));

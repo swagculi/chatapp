@@ -1,54 +1,40 @@
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 const ImageModal = ({ imageUrl, onClose }) => {
-  const [isAnimating, setIsAnimating] = useState(false);
-
+  // Close modal when Escape key is pressed
   useEffect(() => {
-    // Start animation after a brief delay to ensure initial state is rendered
-    const timer = setTimeout(() => setIsAnimating(true), 50);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const handleClose = () => {
-    setIsAnimating(false);
-    setTimeout(onClose, 200);
-  };
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    
+    window.addEventListener("keydown", handleKeyDown);
+    
+    // Prevent scrolling of the body when modal is open
+    document.body.style.overflow = "hidden";
+    
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "auto";
+    };
+  }, [onClose]);
 
   return (
-    <div 
-      className="fixed inset-0 flex items-center justify-center z-50"
-      onClick={handleClose}
-    >
-      <div 
-        className="absolute inset-0 transition-all duration-300"
-        style={{
-          backgroundColor: isAnimating ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0)',
-          backdropFilter: isAnimating ? 'blur(8px)' : 'blur(0px)'
-        }}
-      />
-      <div 
-        className="relative max-w-[90vw] max-h-[90vh] z-10"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+      <div className="relative max-w-4xl max-h-[90vh] w-full">
         <button
-          onClick={handleClose}
-          className={`
-            absolute -top-4 -right-4 btn btn-circle btn-sm bg-base-100
-            transition-opacity duration-300
-            ${isAnimating ? 'opacity-100' : 'opacity-0'}
-          `}
+          onClick={onClose}
+          className="absolute top-2 right-2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
         >
-          <X className="size-4" />
+          <X size={24} />
         </button>
+        
         <img
           src={imageUrl}
           alt="Full size"
-          className={`
-            max-w-full max-h-[90vh] object-contain rounded-lg
-            transition-all duration-300 ease-out
-            ${isAnimating ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}
-          `}
+          className="max-h-[90vh] max-w-full object-contain mx-auto"
         />
       </div>
     </div>

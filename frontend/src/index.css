@@ -1,3 +1,123 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Typing animation */
+.typing-animation {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+}
+
+.typing-animation .dot {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  margin-right: 3px;
+  background: currentColor;
+  animation: typingAnimation 1.4s infinite ease-in-out both;
+}
+
+.typing-animation .dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-animation .dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+/* Smaller version for sidebar */
+.typing-animation-small {
+  display: inline-flex;
+  align-items: center;
+  height: 10px;
+}
+
+.typing-animation-small .dot-small {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  margin-right: 2px;
+  background: currentColor;
+  animation: typingAnimation 1.4s infinite ease-in-out both;
+}
+
+.typing-animation-small .dot-small:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-animation-small .dot-small:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes typingAnimation {
+  0%, 80%, 100% { 
+    transform: scale(0);
+  } 
+  40% { 
+    transform: scale(1.0);
+  }
+}
+
+/* Add these mobile-specific styles */
+@media (max-width: 640px) {
+  /* Hide scrollbar on mobile */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Make sure the app takes full height on mobile */
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
+  }
+  
+  /* Prevent text zoom on input focus */
+  input, textarea {
+    font-size: 16px;
+  }
+  
+  /* Adjust chat bubbles for mobile */
+  .chat-bubble {
+    max-width: 80%;
+  }
+  
+  /* Make images in chat responsive */
+  .chat-bubble img {
+    max-width: 100%;
+  }
+}
+
+/* Add overscroll behavior to prevent pull-to-refresh */
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Add styles for offline indicator */
+.offline-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: #f87171;
+  color: white;
+  text-align: center;
+  padding: 0.5rem;
+  z-index: 50;
+}
+
+/* Confetti animation */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-bounce {
+  animation: bounce 1s ease infinite;
+}

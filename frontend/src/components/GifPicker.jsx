@@ -1,139 +1,143 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, X } from 'lucide-react';
-import debounce from 'lodash/debounce';
-
-const TENOR_API_KEY = 'AIzaSyAmkjeCxuv78sTQPiErMEur1aol8pnGWUM'; // Replace with your Tenor API key
-const TENOR_CLIENT_KEY = 'chat-app';
+import { X, Search } from 'lucide-react';
+import axios from 'axios';
 
 const GifPicker = ({ onSelect, onClose, isOpen }) => {
   const [gifs, setGifs] = useState([]);
-  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
-  const searchInputRef = useRef(null);
-
+  const [search, setSearch] = useState('');
+  const [error, setError] = useState(null);
+  const containerRef = useRef(null);
+  
+  // Using a public Tenor API key for demo purposes
+  // In production, you should use environment variables
+  const TENOR_API_KEY = 'AIzaSyBgGSmlVD_UvTMJ8D7CRrCKE8_Zcw1KQCw';
+  
   useEffect(() => {
-    if (isOpen) {
-      searchInputRef.current?.focus();
-      fetchTrendingGifs();
-    }
+    if (!isOpen) return;
+    
+    const fetchTrendingGifs = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await axios.get(
+          `https://tenor.googleapis.com/v2/featured?key=${TENOR_API_KEY}&limit=20`
+        );
+        setGifs(response.data.results);
+      } catch (err) {
+        console.error('Error fetching trending GIFs:', err);
+        setError('Failed to load GIFs');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTrendingGifs();
   }, [isOpen]);
-
-  const fetchTrendingGifs = async () => {
+  
+  const searchGifs = async () => {
+    if (!search.trim()) return;
+    
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      const response = await fetch(
-        `https://tenor.googleapis.com/v2/featured?key=${TENOR_API_KEY}&client_key=${TENOR_CLIENT_KEY}&limit=20`
+      const response = await axios.get(
+        `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(search)}&key=${TENOR_API_KEY}&limit=20`
       );
-      const data = await response.json();
-      const formattedGifs = data.results.map(gif => ({
-        id: gif.id,
-        url: gif.media_formats.tinygif.url,
-        previewUrl: gif.media_formats.tinygif.url,
-        description: gif.content_description
-      }));
-      setGifs(formattedGifs);
-    } catch (error) {
-      console.error('Error fetching trending gifs:', error);
+      setGifs(response.data.results);
+    } catch (err) {
+      console.error('Error searching GIFs:', err);
+      setError('Failed to search GIFs');
     } finally {
       setLoading(false);
     }
   };
-
-  const searchGifs = async (searchTerm) => {
-    if (!searchTerm) {
-      fetchTrendingGifs();
-      return;
+  
+  // Close when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        onClose();
+      }
+    };
+    
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
     }
-
-    try {
-      setLoading(true);
-      const response = await fetch(
-        `https://tenor.googleapis.com/v2/search?q=${searchTerm}&key=${TENOR_API_KEY}&client_key=${TENOR_CLIENT_KEY}&limit=20`
-      );
-      const data = await response.json();
-      const formattedGifs = data.results.map(gif => ({
-        id: gif.id,
-        url: gif.media_formats.gif.url,
-        previewUrl: gif.media_formats.tinygif.url,
-        description: gif.content_description
-      }));
-      setGifs(formattedGifs);
-    } catch (error) {
-      console.error('Error searching gifs:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const debouncedSearch = debounce(searchGifs, 500);
-
-  const handleSearch = (e) => {
-    setSearch(e.target.value);
-    debouncedSearch(e.target.value);
-  };
-
-  const handleSelect = (gif) => {
-    onSelect(gif.url);
-    onClose();
-  };
-
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+  
+  if (!isOpen) return null;
+  
   return (
-    <div
-      className={`
-        fixed inset-x-0 bottom-0 z-50 bg-base-200 border-t border-base-300
-        transition-transform duration-300 ease-out
-        ${isOpen ? 'translate-y-0' : 'translate-y-full'}
-      `}
-      style={{ maxHeight: '60vh' }}
+    <div 
+      className="absolute bottom-16 right-0 w-64 bg-base-100 rounded-lg shadow-xl z-50 border border-base-300"
+      ref={containerRef}
     >
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-base-200 border-b border-base-300 p-3">
-        <div className="relative max-w-2xl mx-auto">
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={search}
-            onChange={handleSearch}
-            placeholder="Search GIFs..."
-            className="input input-sm w-full pl-9 pr-9 bg-base-100"
-          />
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/50" />
-          <button 
-            onClick={onClose}
-            className="absolute right-2 top-1/2 -translate-y-1/2 btn btn-ghost btn-xs btn-circle"
-          >
-            <X className="size-3" />
-          </button>
+      <div className="flex justify-between items-center p-3 border-b border-base-300">
+        <h3 className="font-medium">GIFs</h3>
+        <button onClick={onClose} className="btn btn-ghost btn-sm btn-circle">
+          <X size={18} />
+        </button>
+      </div>
+      
+      <div className="p-3 border-b border-base-300">
+        <div className="flex gap-2">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search GIFs..."
+              className="input input-sm input-bordered w-full"
+              onKeyDown={(e) => e.key === 'Enter' && searchGifs()}
+            />
+            <button 
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-base-content/70"
+              onClick={searchGifs}
+            >
+              <Search size={16} />
+            </button>
+          </div>
         </div>
       </div>
-
-      {/* GIFs Grid */}
-      <div className="overflow-y-auto" style={{ height: 'calc(60vh - 56px)' }}>
-        <div className="grid grid-cols-4 gap-2 p-4 max-w-2xl mx-auto">
-          {loading ? (
-            Array(8).fill(0).map((_, i) => (
+      
+      <div className="overflow-y-auto p-3" style={{ maxHeight: '300px' }}>
+        {error && (
+          <div className="text-error text-center py-4">{error}</div>
+        )}
+        
+        {loading ? (
+          <div className="flex justify-center py-4">
+            <span className="loading loading-spinner"></span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {gifs.map((gif) => (
               <div 
-                key={i} 
-                className="aspect-video bg-base-300 animate-pulse rounded-lg"
-              />
-            ))
-          ) : (
-            gifs.map((gif) => (
-              <button
-                key={gif.id}
-                onClick={() => handleSelect(gif)}
-                className="aspect-video relative group rounded-lg overflow-hidden hover:ring-2 ring-primary transition-all bg-base-300"
+                key={gif.id} 
+                className="cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => onSelect(gif.media_formats.gif.url)}
               >
-                <img
-                  src={gif.previewUrl}
-                  alt={gif.description}
-                  className="w-full h-full object-cover"
+                <img 
+                  src={gif.media_formats.tinygif.url} 
+                  alt={gif.content_description}
+                  className="w-full h-auto rounded-md"
                   loading="lazy"
                 />
-              </button>
-            ))
-          )}
-        </div>
+              </div>
+            ))}
+            
+            {gifs.length === 0 && !loading && !error && (
+              <div className="col-span-2 text-center py-4 text-base-content/70">
+                No GIFs found
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import confetti from "canvas-confetti";
+import { useAuthStore } from "../store/userAuthStore";
+import { useChatStore } from "../store/useChatStore";
 
 // Custom party icon
 const PartyIcon = () => (
@@ -13,72 +16,54 @@ const PartyIcon = () => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <path d="M5.8 11.3 2 22l10.7-3.79" />
+    <path d="M5.8 11.3L2 22l10.7-3.79" />
     <path d="M4 3h.01" />
     <path d="M22 8h.01" />
     <path d="M15 2h.01" />
     <path d="M22 20h.01" />
-    <path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12v0c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10" />
-    <path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11v0c-.11.7-.72 1.22-1.43 1.22H17" />
-    <path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98v0C9.52 4.9 9 5.52 9 6.23V7" />
-    <path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z" />
+    <path d="M22 2l-2.24 2.24" />
+    <path d="M17 22l-2.24-2.24" />
+    <path d="M2 17l2.24-2.24" />
+    <path d="M7 2L4.76 4.24" />
   </svg>
 );
 
 const ConfettiButton = () => {
-  const throwConfetti = () => {
-    // Fire multiple bursts of confetti
-    const count = 200;
-    const defaults = {
-      origin: { y: 0.7 },
-      spread: 360,
-      ticks: 50,
-      gravity: 0,
-      decay: 0.94,
-      startVelocity: 30,
-    };
+  const [isActive, setIsActive] = useState(false);
+  const { socket } = useAuthStore();
+  const { selectedUser } = useChatStore();
 
-    function fire(particleRatio, opts) {
-      confetti({
-        ...defaults,
-        ...opts,
-        particleCount: Math.floor(count * particleRatio),
+  // Function to trigger confetti animation
+  const launchConfetti = () => {
+    setIsActive(true);
+    
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.9 }
+    });
+    
+    setTimeout(() => setIsActive(false), 1000);
+  };
+
+  // Function to handle button click
+  const triggerConfetti = () => {
+    // Launch confetti locally
+    launchConfetti();
+    
+    // Send confetti event to the other user
+    if (socket && selectedUser) {
+      socket.emit("triggerConfetti", {
+        receiverId: selectedUser._id
       });
     }
-
-    fire(0.25, {
-      spread: 26,
-      startVelocity: 55,
-    });
-
-    fire(0.2, {
-      spread: 60,
-    });
-
-    fire(0.35, {
-      spread: 100,
-      decay: 0.91,
-      scalar: 0.8,
-    });
-
-    fire(0.1, {
-      spread: 120,
-      startVelocity: 25,
-      decay: 0.92,
-      scalar: 1.2,
-    });
-
-    fire(0.1, {
-      spread: 120,
-      startVelocity: 45,
-    });
   };
 
   return (
     <button
-      onClick={throwConfetti}
-      className="btn btn-circle btn-sm btn-primary"
       type="button"
+      onClick={triggerConfetti}
+      className={`btn btn-ghost btn-circle btn-sm ${isActive ? 'text-primary' : ''}`}
     >
       <PartyIcon />
     </button>

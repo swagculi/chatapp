@@ -6,6 +6,8 @@ import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "./store/userAuthStore";
 import { useThemeStore } from "./store/useThemeStore";
 import MainSidebar from "./components/MainSidebar";
+import { initAudio } from "./lib/sound";
+import OfflineIndicator from "./components/OfflineIndicator";
 
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
@@ -20,6 +22,22 @@ const App = () => {
   
   useEffect(() => {
     checkAuth()
+    
+    // Initialize audio on first user interaction
+    const handleUserInteraction = () => {
+      initAudio();
+      // Remove event listeners after first interaction
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+    };
+    
+    document.addEventListener('click', handleUserInteraction);
+    document.addEventListener('keydown', handleUserInteraction);
+    
+    return () => {
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+    };
   }, [checkAuth]);
 
   console.log({onlineUsers});
@@ -49,6 +67,8 @@ const App = () => {
         >
           <Menu className="size-6" />
         </button>
+
+        <OfflineIndicator />
 
         <Routes>
           <Route path="/" element={authUser ? <HomePage /> : <Navigate to="/login" />} />

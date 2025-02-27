@@ -1,6 +1,7 @@
 import { THEMES } from "../constants";
 import { useThemeStore } from "../store/useThemeStore";
-import { Send } from "lucide-react";
+import { useChatStore } from "../store/useChatStore";
+import { Send, Volume2, VolumeX } from "lucide-react";
 
 const PREVIEW_MESSAGES = [
   { id: 1, content: "Hey! How's it going?", isSent: false },
@@ -9,38 +10,68 @@ const PREVIEW_MESSAGES = [
 
 const SettingsPage = () => {
   const { theme, setTheme } = useThemeStore();
+  const { soundEnabled, toggleSound } = useChatStore();
 
   return (
     <div className="h-screen container mx-auto px-4 pt-20 max-w-5xl">
-      <div className="space-y-6">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-semibold">Theme</h2>
-          <p className="text-sm text-base-content/70">Choose a theme for your chat interface</p>
+      <div className="space-y-8">
+        {/* Theme Section */}
+        <div className="space-y-6">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-lg font-semibold">Theme</h2>
+            <p className="text-sm text-base-content/70">Choose a theme for your chat interface</p>
+          </div>
+
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+            {THEMES.map((t) => (
+              <button
+                key={t}
+                className={`
+                  group flex flex-col items-center gap-1.5 p-2 rounded-lg transition-colors
+                  ${theme === t ? "bg-base-200" : "hover:bg-base-200/50"}
+                `}
+                onClick={() => setTheme(t)}
+              >
+                <div className="relative h-8 w-full rounded-md overflow-hidden" data-theme={t}>
+                  <div className="absolute inset-0 grid grid-cols-4 gap-px p-1">
+                    <div className="rounded bg-primary"></div>
+                    <div className="rounded bg-secondary"></div>
+                    <div className="rounded bg-accent"></div>
+                    <div className="rounded bg-neutral"></div>
+                  </div>
+                </div>
+                <span className="text-[11px] font-medium truncate w-full text-center">
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-          {THEMES.map((t) => (
-            <button
-              key={t}
-              className={`
-                group flex flex-col items-center gap-1.5 p-2 rounded-lg transition-colors
-                ${theme === t ? "bg-base-200" : "hover:bg-base-200/50"}
-              `}
-              onClick={() => setTheme(t)}
-            >
-              <div className="relative h-8 w-full rounded-md overflow-hidden" data-theme={t}>
-                <div className="absolute inset-0 grid grid-cols-4 gap-px p-1">
-                  <div className="rounded bg-primary"></div>
-                  <div className="rounded bg-secondary"></div>
-                  <div className="rounded bg-accent"></div>
-                  <div className="rounded bg-neutral"></div>
-                </div>
-              </div>
-              <span className="text-[11px] font-medium truncate w-full text-center">
-                {t.charAt(0).toUpperCase() + t.slice(1)}
-              </span>
-            </button>
-          ))}
+        {/* Notification Sound Section */}
+        <div className="space-y-4">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-lg font-semibold">Notifications</h2>
+            <p className="text-sm text-base-content/70">Configure notification settings</p>
+          </div>
+
+          <div className="form-control">
+            <label className="cursor-pointer flex items-center gap-3 p-3 rounded-lg hover:bg-base-200 transition-colors">
+              <span>{soundEnabled ? <Volume2 className="size-5" /> : <VolumeX className="size-5" />}</span>
+              <span className="flex-1">Notification Sound</span>
+              <input 
+                type="checkbox" 
+                className="toggle toggle-primary" 
+                checked={soundEnabled}
+                onChange={toggleSound}
+              />
+            </label>
+            <p className="text-xs text-base-content/60 mt-1 ml-3">
+              {soundEnabled 
+                ? "You'll hear a sound when you receive new messages" 
+                : "Message notification sounds are turned off"}
+            </p>
+          </div>
         </div>
 
         {/* Preview Section */}

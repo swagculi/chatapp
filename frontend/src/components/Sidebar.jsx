@@ -5,7 +5,7 @@ import { Users, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '../store/userAuthStore';
 
 const Sidebar = () => {
-  const { getUsers, users, isUsersLoading, setSelectedUser, selectedUser, unreadCounts, getUnreadCounts } = useChatStore();
+  const { getUsers, users, isUsersLoading, setSelectedUser, selectedUser, unreadCounts, getUnreadCounts, typingUsers } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [isExpanded, setIsExpanded] = useState(true);
@@ -73,6 +73,16 @@ const Sidebar = () => {
               {onlineUsers.includes(user._id) && (
                 <span className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full ring-2 ring-base-100" />
               )}
+              {/* Typing indicator */}
+              {typingUsers[user._id] && (
+                <div className="absolute -bottom-1 -right-1 bg-base-100 rounded-full p-1">
+                  <div className="typing-animation-small">
+                    <span className="dot-small"></span>
+                    <span className="dot-small"></span>
+                    <span className="dot-small"></span>
+                  </div>
+                </div>
+              )}
               {/* Unread Message Badge */}
               {unreadCounts[user._id] > 0 && (
                 <div className="absolute -top-2 -right-2 bg-error text-error-content text-xs font-medium rounded-full h-5 min-w-[20px] flex items-center justify-center px-1">
@@ -85,7 +95,11 @@ const Sidebar = () => {
               <div className="text-left min-w-0 flex-1">
                 <div className="font-medium truncate">{user.fullName}</div>
                 <div className="text-sm text-base-content/60">
-                  {onlineUsers.includes(user._id) ? "Online" : "Offline"}
+                  {typingUsers[user._id] ? (
+                    <span className="text-primary">typing...</span>
+                  ) : (
+                    onlineUsers.includes(user._id) ? "Online" : "Offline"
+                  )}
                 </div>
               </div>
             )}
